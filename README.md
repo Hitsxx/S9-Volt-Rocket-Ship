@@ -11,7 +11,7 @@ This is made for the 13.5th and 14th S9.
 
 The following is good to run at 800mhz and gets 17th/s and is STABLE and will almost max out the bitmain 1600w psu. This one is running at 8.8v and there are a few other small modifications that seemed to work better for the s9i. If you have an s9i use this one below for a stable 17th. I need some people to test this on 13.5 and 14th S9 non i models.
 
-8.8v
+880
 
 
 Upgrade instructions: 
