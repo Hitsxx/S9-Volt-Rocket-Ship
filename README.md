@@ -58,3 +58,14 @@ Known Issues:
 If you have any issues stop bmminer from putty and in WinSCP delete bmminer and then rename bmminer.old to bminner which will be your stock settings.
 
 
+
+To compile from source
+
+sudo dpkg --add-architecture i386
+sudo apt-get update
+sudo apt-get install git build-essential libz1:i386 libc6:i386 libstdc++6:i386
+
+
+make clean
+./setminertype S9
+make
