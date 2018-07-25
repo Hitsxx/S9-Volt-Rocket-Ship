@@ -209,7 +209,7 @@ uint8_t de_voltage = 176;
 int FatalErrorValue=0;
 
 bool opt_bitmain_new_cmd_type_vil = false;
-bool opt_fixed_freq = true; // Fixed Freqeuency 
+bool opt_fixed_freq = true;
 bool opt_pre_heat = true;
 
 bool status_error = false;
@@ -586,17 +586,17 @@ int getVoltageLimitedFromHashrate(int hashrate_GHz)
 
 #ifdef S9_63
     if(hashrate_GHz>=14500)
-        vol_value=880;
+        vol_value=870;
     else if(hashrate_GHz>=14000)
         vol_value=880;
     else if(hashrate_GHz>=13500)
-        vol_value=880;
+        vol_value=900;
     else if(hashrate_GHz>=13000)
-        vol_value=880;
+        vol_value=910;
     else if(hashrate_GHz>=12500)
-        vol_value=880;
+        vol_value=930;
     else
-        vol_value=880;
+        vol_value=940;
 #endif
 
 #ifdef T9_18
@@ -7248,8 +7248,8 @@ void set_Hardware_version(unsigned int value)
 #ifdef DEBUG_NOT_CHECK_FAN_NUM
             if(cur_fan_num < MIN_FAN_NUM)
             {
-             //   sprintf(logstr,"DEBUG Fatal Error: FAN lost! fan num=%d\n",cur_fan_num);
-             //   writeInitLogFile(logstr);
+              //  sprintf(logstr,"DEBUG Fatal Error: FAN lost! fan num=%d\n",cur_fan_num);
+               // writeInitLogFile(logstr);
 
                 // we keep running...
                 cur_fan_num=MIN_FAN_NUM;
@@ -7509,7 +7509,7 @@ void set_Hardware_version(unsigned int value)
         }
         else
         {
-            applog(LOG_DEBUG,"actual_asic_number = %d, but it is an error\n", actual_asic_number);
+            applog(LOG_DEBUG,"actual_asic_number = %d, but it is error\n", actual_asic_number);
             return -1;
         }
         return i;
@@ -7552,7 +7552,7 @@ void set_Hardware_version(unsigned int value)
         }
         else
         {
-            applog(LOG_DEBUG,"actual_core_number = %d, but it is an error\n", actual_core_number);
+            applog(LOG_DEBUG,"actual_core_number = %d, but it is error\n", actual_core_number);
             return -1;
         }
         return i;
@@ -10029,7 +10029,7 @@ void set_Hardware_version(unsigned int value)
             {
                 PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_512MB;
 
-                sprintf(logstr, "Detect 512MB control board of XILINX... I think it's on a rocket ship!\n");
+                sprintf(logstr, "Detect 512MB control board of XILINX\n");
             }
             else
             {
@@ -10051,7 +10051,7 @@ void set_Hardware_version(unsigned int value)
 #endif
 
 #ifdef S9_63    // if defined , for S9  63 chips
-        sprintf(logstr,"Miner Type = S9 ROCKET SHIP\n");
+        sprintf(logstr,"Miner Type = S9\n");
         writeInitLogFile(logstr);
 #endif
 
@@ -10343,7 +10343,7 @@ void set_Hardware_version(unsigned int value)
                     chain_voltage_value[i] = getFixedFreqVoltageValue(config_parameter.frequency);
                     chain_voltage_pic[i] = getPICvoltageFromValue(chain_voltage_value[i]);
 
-                    sprintf(logstr,"Fix freq=%d Chain[%d] voltage_pic=%d value=%d Ooooooh We changed the voltage!\n",config_parameter.frequency,i,chain_voltage_pic[i],chain_voltage_value[i]);
+                    sprintf(logstr,"Fix freq=%d Chain[%d] voltage_pic=%d value=%d\n",config_parameter.frequency,i,chain_voltage_pic[i],chain_voltage_value[i]);
                     writeInitLogFile(logstr);
                 }
             }
