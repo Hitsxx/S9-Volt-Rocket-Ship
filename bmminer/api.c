@@ -1044,7 +1044,7 @@ struct api_data *api_add_uint8(struct api_data *root, char *name, uint8_t *data,
     return api_add_data_full(root, name, API_UINT8, (void *)data, copy_data);
 }
 
-struct api_data *api_add_int16(struct api_data *root, char *name, uint16_t *data, bool copy_data)
+struct api_data *api_add_int16(struct api_data *root, char *name, int16_t *data, bool copy_data)
 {
     return api_add_data_full(root, name, API_INT16, (void *)data, copy_data);
 }

@@ -63,7 +63,7 @@ XILINX_OTHER_LIB_BASE_PATH=$(CURDIR)/build-tools/prebuilt-libz/linux-armhf
 
 # The pre-processor and compiler options.
 # MY_CFLAGS = -ggdb3 -pipe -O2 -Wall -Wextra -fopenmp -march=native -mfpmath=sse -DLINUX -m64 -std=c++0x
-MY_CFLAGS = -O2 -pthread -I$(XILINX_INC) -L$(XILINX_LIBDIR) -I./ -I./ccan/opt -I./compat/jansson-2.6/src -I./lib -I$(XILINX_OTHER_LIB_BASE_PATH)/include
+MY_CFLAGS = -O2 -Wall -pthread -I$(XILINX_INC) -L$(XILINX_LIBDIR) -I./ -I./ccan/opt -I./compat/jansson-2.6/src -I./lib -I$(XILINX_OTHER_LIB_BASE_PATH)/include
 #-Itest1/include -Itest2/include -Itest1/include/test1 -Itest2/include/test2
 
 # The linker options.

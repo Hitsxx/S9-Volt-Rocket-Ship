@@ -61,75 +61,14 @@ bool isUseDefaultFreq=false;
 bool doTestPatten=false;
 bool startCheckNetworkJob=false;
 
-unsigned char reset_iic_pic(unsigned char chain);
+void reset_iic_pic(unsigned char chain);
 
 extern  bool clement_doTestBoard(bool showlog);
 bool clement_doTestBoardOnce(bool showlog);
 
 #define hex_print(p) applog(LOG_DEBUG, "%s", p)
 
-static char nibble[] =
-{
-    '0', '1', '2', '3', '4', '5', '6', '7',
-    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-};
-
 #define BYTES_PER_LINE 0x10
-
-static void hexdump(const uint8_t *p, unsigned int len)
-{
-    unsigned int i, addr;
-    unsigned int wordlen = sizeof(unsigned int);
-    unsigned char v, line[BYTES_PER_LINE * 5];
-
-    for (addr = 0; addr < len; addr += BYTES_PER_LINE)
-    {
-        /* clear line */
-        for (i = 0; i < sizeof(line); i++)
-        {
-            if (i == wordlen * 2 + 52 ||
-                i == wordlen * 2 + 69)
-            {
-                line[i] = '|';
-                continue;
-            }
-
-            if (i == wordlen * 2 + 70)
-            {
-                line[i] = '\0';
-                continue;
-            }
-
-            line[i] = ' ';
-        }
-
-        /* print address */
-        for (i = 0; i < wordlen * 2; i++)
-        {
-            v = addr >> ((wordlen * 2 - i - 1) * 4);
-            line[i] = nibble[v & 0xf];
-        }
-
-        /* dump content */
-        for (i = 0; i < BYTES_PER_LINE; i++)
-        {
-            int pos = (wordlen * 2) + 3 + (i / 8);
-
-            if (addr + i >= len)
-                break;
-
-            v = p[addr + i];
-            line[pos + (i * 3) + 0] = nibble[v >> 4];
-            line[pos + (i * 3) + 1] = nibble[v & 0xf];
-
-            /* character printable? */
-            line[(wordlen * 2) + 53 + i] =
-                (v >= ' ' && v <= '~') ? v : '.';
-        }
-
-        hex_print(line);
-    }
-}
 
 
 #include "util.h"
@@ -219,10 +158,10 @@ int check_iic = 0;
 bool update_temp =false;
 bool check_temp_offside = false;
 
-double chain_asic_RT[BITMAIN_MAX_CHAIN_NUM][CHAIN_ASIC_NUM]= {0};
+double chain_asic_RT[BITMAIN_MAX_CHAIN_NUM][CHAIN_ASIC_NUM]= {{0},{0}};
 
 uint64_t rate[BITMAIN_MAX_CHAIN_NUM] = {0};
-uint64_t nonce_num[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM][TIMESLICE] = {0};
+uint64_t nonce_num[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM][TIMESLICE] = {{{0},{0}},{{0},{0}},{{0},{0}}};
 int nonce_times = 0;
 int rate_error[BITMAIN_MAX_CHAIN_NUM] = {0};
 char displayed_rate[BITMAIN_MAX_CHAIN_NUM][32];
@@ -240,25 +179,22 @@ int LOWEST_TEMP_DOWN_FAN=MIN_TEMP_CONTINUE_DOWN_FAN;
 #ifdef T9_18
 unsigned char chain_pic_buf[BITMAIN_MAX_CHAIN_NUM][128] = {0};
 #else
-unsigned char last_freq[BITMAIN_MAX_CHAIN_NUM][256] = {0};
-unsigned char badcore_num_buf[BITMAIN_MAX_CHAIN_NUM][64] = {0};
+unsigned char last_freq[BITMAIN_MAX_CHAIN_NUM][256] = {{0},{0}};
+unsigned char badcore_num_buf[BITMAIN_MAX_CHAIN_NUM][64] = {{0},{0}};
 #endif
 
-int chain_badcore_num[BITMAIN_MAX_CHAIN_NUM][256] = {0};
+int chain_badcore_num[BITMAIN_MAX_CHAIN_NUM][256] = {{0},{0}};
 
-unsigned char show_last_freq[BITMAIN_MAX_CHAIN_NUM][256] = {0}; // only used to showed to users
-unsigned char chip_last_freq[BITMAIN_MAX_CHAIN_NUM][256] = {0}; // this is the real value , which set freq into chips
+unsigned char show_last_freq[BITMAIN_MAX_CHAIN_NUM][256] = {{0},{0}}; // only used to showed to users
+unsigned char chip_last_freq[BITMAIN_MAX_CHAIN_NUM][256] = {{0},{0}}; // this is the real value , which set freq into chips
 
 unsigned char pic_temp_offset[BITMAIN_MAX_CHAIN_NUM] = {0};
 unsigned char base_freq_index[BITMAIN_MAX_CHAIN_NUM] = {0};
 
-int x_time[BITMAIN_MAX_CHAIN_NUM][256] = {0};
+int x_time[BITMAIN_MAX_CHAIN_NUM][256] = {{0},{0}};
 int temp_offside[BITMAIN_MAX_CHAIN_NUM] = {0};
 
 static bool global_stop = false;
-
-//Test Core
-static int test_core = 8;
 
 
 struct nonce_content temp_nonce_buf[MAX_RETURNED_NONCE_NUM];
@@ -270,11 +206,7 @@ volatile struct reg_buf reg_value_buf;
 #define USE_IIC 1
 #define TEMP_CALI 0
 
-static int8_t bottom_Offset[BITMAIN_MAX_CHAIN_NUM][MAX_TEMPCHIP_NUM] = {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0};
-static int8_t middle_Offset[BITMAIN_MAX_CHAIN_NUM][MAX_TEMPCHIP_NUM] = {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0};
-
-static int8_t bottom_Offset_sw[BITMAIN_MAX_CHAIN_NUM][MAX_TEMPCHIP_NUM] = {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0};
-static int8_t middle_Offset_sw[BITMAIN_MAX_CHAIN_NUM][MAX_TEMPCHIP_NUM] = {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0};
+static int8_t middle_Offset[BITMAIN_MAX_CHAIN_NUM][MAX_TEMPCHIP_NUM] = {{0},{0}};
 
 pthread_mutex_t init_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -283,10 +215,19 @@ bool isChainAllCoresOpened[BITMAIN_MAX_CHAIN_NUM]= {false}; // is all cores open
 
 void set_led(bool stop);
 void open_core(bool nullwork_enable);
+int send_job(unsigned char *buf);
+int readRebootTestNum();
+int calculate_core_number(unsigned int actual_core_number);
+
+extern void get_work_by_nonce2(struct thr_info *thr,
+                        struct work **work,
+                        struct pool *pool,
+                        struct pool *real_pool,
+                        uint64_t nonce2,
+                        uint32_t version);
 
 pthread_mutex_t reinit_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static int reinit_counter=0;
 void bitmain_core_reInit();
 
 signed char getMeddleOffsetForTestPatten(int chainIndex)
@@ -923,7 +864,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
 
     }
 
-    unsigned char erase_pic_flash_all(unsigned char chain)
+    void erase_pic_flash_all(unsigned char chain)
     {
         unsigned int i=0, erase_loop = 0;
         unsigned char start_addr_h = PIC_FLASH_POINTER_START_ADDRESS_H, start_addr_l = PIC_FLASH_POINTER_START_ADDRESS_L;
@@ -965,10 +906,10 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         }
     }
 #else
-    void get_temperature_offset_value(unsigned char chain, unsigned char *value)
+    void get_temperature_offset_value(unsigned char chain, signed char *value)
     {
         send_pic_command(chain);
-        get_data_from_pic_iic(chain, RD_TEMP_OFFSET_VALUE, value, 8);
+        get_data_from_pic_iic(chain, RD_TEMP_OFFSET_VALUE, (unsigned char *)value, 8);
     }
 #endif
 
@@ -1248,19 +1189,15 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         }
     }
 #else
-    unsigned char jump_to_app_from_loader(unsigned char chain)
+    void jump_to_app_from_loader(unsigned char chain)
     {
-        unsigned char ret=0xff;
-
         send_pic_command(chain);
         write_pic_iic(false, false, 0x0, chain, JUMP_FROM_LOADER_TO_APP);
         cgsleep_us(100000);
     }
 
-    unsigned char reset_iic_pic(unsigned char chain)
+    void reset_iic_pic(unsigned char chain)
     {
-        unsigned char ret=0xff;
-
         send_pic_command(chain);
         write_pic_iic(false, false, 0x0, chain, RESET_PIC);
         cgsleep_us(100000);
@@ -2404,10 +2341,10 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         axi_fpga_addr = mmap(NULL, TOTAL_LEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
         if(!axi_fpga_addr)
         {
-            applog(LOG_DEBUG,"mmap axi_fpga_addr failed. axi_fpga_addr = 0x%x\n", axi_fpga_addr);
+            applog(LOG_DEBUG,"mmap axi_fpga_addr failed. axi_fpga_addr = 0x%p\n", axi_fpga_addr);
             return -1;
         }
-        applog(LOG_DEBUG,"mmap axi_fpga_addr = 0x%x\n", axi_fpga_addr);
+        applog(LOG_DEBUG,"mmap axi_fpga_addr = 0x%p\n", axi_fpga_addr);
 
         //check the value in address 0xff200000
         data = *axi_fpga_addr;
@@ -2429,17 +2366,17 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         fpga_mem_addr = mmap(NULL, FPGA_MEM_TOTAL_LEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd_fpga_mem, 0);
         if(!fpga_mem_addr)
         {
-            applog(LOG_DEBUG,"mmap fpga_mem_addr failed. fpga_mem_addr = 0x%x\n", fpga_mem_addr);
+            applog(LOG_DEBUG,"mmap fpga_mem_addr failed. fpga_mem_addr = 0x%p\n", fpga_mem_addr);
             return -1;
         }
-        applog(LOG_DEBUG,"mmap fpga_mem_addr = 0x%x\n", fpga_mem_addr);
+        applog(LOG_DEBUG,"mmap fpga_mem_addr = 0x%p\n", fpga_mem_addr);
 
         nonce2_jobid_address = fpga_mem_addr;
         job_start_address_1  = fpga_mem_addr + NONCE2_AND_JOBID_STORE_SPACE/sizeof(int);
         job_start_address_2  = fpga_mem_addr + (NONCE2_AND_JOBID_STORE_SPACE + JOB_STORE_SPACE)/sizeof(int);
 
-        applog(LOG_DEBUG,"job_start_address_1 = 0x%x\n", job_start_address_1);
-        applog(LOG_DEBUG,"job_start_address_2 = 0x%x\n", job_start_address_2);
+        applog(LOG_DEBUG,"job_start_address_1 = 0x%p\n", job_start_address_1);
+        applog(LOG_DEBUG,"job_start_address_2 = 0x%p\n", job_start_address_2);
 
         set_nonce2_and_job_id_store_address(PHY_MEM_NONCE2_JOBID_ADDRESS);
         set_job_start_address(PHY_MEM_JOB_START_ADDRESS_1);
@@ -2483,7 +2420,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         return ret;
     }
 
-    int bitmain_axi_close()
+    void bitmain_axi_close()
     {
         int ret = 0;
 
@@ -2800,7 +2737,6 @@ void set_Hardware_version(unsigned int value)
 
     void set_pre_header_hash(unsigned int *value)
     {
-        unsigned int buf[8] = {0};
         *(axi_fpga_addr + PRE_HEADER_HASH) = *(value + 0);
         *(axi_fpga_addr + PRE_HEADER_HASH + 1) = *(value + 1);
         *(axi_fpga_addr + PRE_HEADER_HASH + 2) = *(value + 2);
@@ -2810,7 +2746,6 @@ void set_Hardware_version(unsigned int value)
         *(axi_fpga_addr + PRE_HEADER_HASH + 6) = *(value + 6);
         *(axi_fpga_addr + PRE_HEADER_HASH + 7) = *(value + 7);
         applog(LOG_DEBUG,"%s: set PRE_HEADER_HASH value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x, value[3]: 0x%x, value[4]: 0x%x, value[5]: 0x%x, value[6]: 0x%x, value[7]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2), *(value + 3), *(value + 4), *(value + 5), *(value + 6), *(value + 7));
-        //get_pre_header_hash(buf);
     }
 
     int get_coinbase_length_and_nonce2_length(void)
@@ -2961,7 +2896,7 @@ void set_Hardware_version(unsigned int value)
 
         if(ret < 0)
         {
-            applog(LOG_DEBUG,"%s: get_hash_on_plug functions error\n");
+            applog(LOG_DEBUG,"%s: get_hash_on_plug functions error\n",__FUNCTION__);
         }
         else
         {
@@ -3613,7 +3548,7 @@ void set_Hardware_version(unsigned int value)
 #else
     bool isChainEnough()
     {
-        int i,j;
+        int i;
         int chainnum=0;
         for(i=0; i<BITMAIN_MAX_CHAIN_NUM; i++)
         {
@@ -3720,7 +3655,6 @@ void set_Hardware_version(unsigned int value)
     static bool DownOneChipFreqOneStep()
     {
         int j;
-        uint8_t tmp_vol;
         int board_rate=0;
         int max_freq=0,max_freq_chipIndex=0,max_rate_chainIndex=0;
         char logstr[256];
@@ -3785,7 +3719,7 @@ void set_Hardware_version(unsigned int value)
 
         if(max_freq_chipIndex<0)
         {
-            sprintf(logstr,"Fatal Error: DownOneChipFreqOneStep Chain[%d] has Wrong chip index=%d\n",max_freq_chipIndex);
+            sprintf(logstr,"Fatal Error: DownOneChipFreqOneStep Chain has Wrong chip index=%d\n",max_freq_chipIndex);
             writeInitLogFile(logstr);
             return false;
         }
@@ -3793,7 +3727,7 @@ void set_Hardware_version(unsigned int value)
         //down one step on highest chip, but freq must be > 250M
         if(max_freq<=MIN_FREQ)
         {
-            sprintf(logstr,"Fatal Error: DownOneChipFreqOneStep Chain[%d] has no chip can down freq!!!\n",max_rate_chainIndex);
+            sprintf(logstr,"Fatal Error: DownOneChipFreqOneStep Chain has no chip can down freq!!! index=%d\n",max_rate_chainIndex);
             writeInitLogFile(logstr);
             return false;
         }
@@ -4004,10 +3938,8 @@ void set_Hardware_version(unsigned int value)
 
     void set_frequency(unsigned short int frequency)
     {
-        unsigned char buf[9] = {0,0,0,0,0,0,0,0,0};
-        unsigned int cmd_buf[3] = {0,0,0};
-        int i,j,k,max_freq_index = 0,step_down = 0;
-        unsigned int ret, value;
+        int i,j,max_freq_index = 0,step_down = 0;
+        unsigned int value;
         uint32_t reg_data_pll = 0;
         uint16_t reg_data_pll2 = 0;
         uint32_t reg_data_vil = 0;
@@ -4764,8 +4696,6 @@ void set_Hardware_version(unsigned int value)
 
     void clear_nonce_fifo()
     {
-        unsigned int buf[2] = {0};
-
         pthread_mutex_lock(&nonce_mutex);
         nonce_read_out.p_wr = 0;
         nonce_read_out.p_rd = 0;
@@ -4786,7 +4716,6 @@ void set_Hardware_version(unsigned int value)
     void read_asic_register(unsigned char chain, unsigned char mode, unsigned char chip_addr, unsigned char reg_addr)
     {
         unsigned char buf[5] = {0,0,0,0,0};
-        unsigned char buf_vil[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
         unsigned int cmd_buf[3] = {0,0,0};
         unsigned int ret, value;
         char logstr[256];
@@ -4891,32 +4820,11 @@ void set_Hardware_version(unsigned int value)
         const uint64_t kilo = 1000ull;
         const uint64_t mega = 1000000ull;
         const uint64_t giga = 1000000000ull;
-        const uint64_t tera = 1000000000000ull;
-        const uint64_t peta = 1000000000000000ull;
-        const uint64_t exa  = 1000000000000000000ull;
         char suffix[2] = "";
         bool decimal = true;
         double dval;
-        /*
-            if (val >= exa)
-            {
-                val /= peta;
-                dval = (double)val / dkilo;
-                strcpy(suffix, "E");
-            }
-            else if (val >= peta)
-            {
-                val /= tera;
-                dval = (double)val / dkilo;
-                strcpy(suffix, "P");
-            }
-            else if (val >= tera)
-            {
-                val /= giga;
-                dval = (double)val / dkilo;
-                strcpy(suffix, "T");
-            }
-            else */if (val >= giga)
+        
+        if (val >= giga)
         {
             val /= mega;
             dval = (double)val / dkilo;
@@ -4989,10 +4897,7 @@ void set_Hardware_version(unsigned int value)
     bool check_asic_reg(unsigned int reg)
     {
         int i, j, not_reg_data_time=0;
-        int nonce_number = 0;
-        unsigned int buf[2] = {0};
         unsigned int reg_value_num=0;
-        unsigned int temp_nonce = 0;
         unsigned char reg_buf[5] = {0,0,0,0,0};
         int read_num = 0;
         uint64_t tmp_rate = 0;
@@ -5135,8 +5040,7 @@ void set_Hardware_version(unsigned int value)
                                 int ii;
                                 char displayed_rate_asic[32];
                                 uint64_t temp_hash_rate = 0;
-                                uint8_t rate_buf[10];
-                                uint8_t displayed_rate[16];
+                                char rate_buf[10] = {0};
 
                                 read_num ++;
                                 if(read_num<=CHAIN_ASIC_NUM)
@@ -5242,15 +5146,11 @@ void set_Hardware_version(unsigned int value)
     {
 
         int i, j, not_reg_data_time=0;
-        int nonce_number = 0;
-        unsigned int buf[2] = {0};
         unsigned int reg_value_num=0;
-        unsigned int temp_nonce = 0;
         unsigned char reg_buf[5] = {0,0,0,0,0};
         int read_num = 0;
         uint64_t tmp_rate = 0;
         int reg_processed_counter=0;
-        char logstr[256];
 
     rerun_all:
         clear_register_value_buf();
@@ -5367,8 +5267,7 @@ void set_Hardware_version(unsigned int value)
                             {
                                 int i;
                                 uint64_t temp_hash_rate = 0;
-                                uint8_t rate_buf[10];
-                                uint8_t displayed_rate[16];
+                                char rate_buf[10] = {0};
                                 for(i = 0; i < 4; i++)
                                 {
                                     sprintf(rate_buf + 2*i,"%02x",reg_buf[i]);
@@ -5442,8 +5341,7 @@ void set_Hardware_version(unsigned int value)
 #define RETRY_NUM 5
     unsigned int check_asic_reg_with_addr(unsigned int reg,unsigned int chip_addr,unsigned int chain, int check_num)
     {
-        int i, j, not_reg_data_time=0;
-        int nonce_number = 0;
+        int i, not_reg_data_time=0;
         unsigned int reg_value_num=0;
         unsigned int reg_buf = 0;
         i = chain;
@@ -5597,10 +5495,6 @@ void set_Hardware_version(unsigned int value)
         int8_t offset = 0;
         int8_t middle,local = 0;
         int16_t ret = 0;
-        int8_t error_Limit = 0;
-        int8_t retry_Time_Count = 0;
-        int get_value_once=0;
-        int check_ok_counter=0;
         char logstr[256];
 
         ret = check_reg_temp(device, 0xfe, 0x0, 0, chip_addr, chain); // Read Local Temp, Without Any Exception?
@@ -5619,7 +5513,7 @@ void set_Hardware_version(unsigned int value)
         ret = check_reg_temp(device, 0x1, 0x0, 0, chip_addr, chain); // Read Remote Temp
 
 #ifdef EXTEND_TEMP_MODE
-        middle = ret & 0xff - 64;
+        middle = (ret & 0xff) - 64;
 #else
         middle = ret & 0xff;
 #endif
@@ -5787,7 +5681,6 @@ void set_Hardware_version(unsigned int value)
         signed char temp_offset[8];
         unsigned int ret = 0;
         char logstr[256];
-        int8_t middle,local = 0;
 
 #ifdef T9_18
         if(fpga_version>=0xE)
@@ -6068,14 +5961,7 @@ void set_Hardware_version(unsigned int value)
 
     void bitmain_reinit_test()
     {
-        char ret=0,j;
-        uint16_t crc = 0;
-
-        int i=0,x = 0,y = 0;
-        int hardware_version;
-        unsigned int data = 0;
-        bool testRet;
-        int testCounter=0;
+        int i=0;
         char logstr[256];
 
         pthread_mutex_lock(&iic_mutex);
@@ -6251,7 +6137,7 @@ void set_Hardware_version(unsigned int value)
 #endif
 
         if(opt_multi_version)
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version) & (~NEW_BLOCK) & (~RUN_BIT));
+            set_dhash_acc_control(((get_dhash_acc_control() & (~OPERATION_MODE)) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version)) & (~NEW_BLOCK) & (~RUN_BIT));
         cgsleep_ms(10);
 
         //set core number
@@ -6789,17 +6675,11 @@ void set_Hardware_version(unsigned int value)
         struct timeval diff;
         int i,j;
         unsigned int ret = 0;
-        unsigned int ret0 = 0;
-        unsigned int ret1 = 0;
-        unsigned int ret2 = 0;
-        unsigned int ret3 = 0;
-        int chain_asic_temp_error[BITMAIN_MAX_CHAIN_NUM][MAX_TEMPCHIP_NUM]= {0};
+        int chain_asic_temp_error[BITMAIN_MAX_CHAIN_NUM][MAX_TEMPCHIP_NUM]= {{0},{0}};
 
         int16_t temp_top[TEMP_POS_NUM];
         int16_t temp_low[TEMP_POS_NUM];
         bool already_offside = false;
-
-        Temp_Type_E temp_Type = TEMP_MIDDLE;
 
         int maxtemp[TEMP_POS_NUM];
         int mintemp[TEMP_POS_NUM];
@@ -7817,7 +7697,6 @@ void set_Hardware_version(unsigned int value)
     {
         unsigned int rBaudrate = 0, baud = 0;
         unsigned char bauddiv = 0;
-        int i =0;
         char logstr[256];
 
         rBaudrate = 1000000 * 5/3 / dev->timeout * (64*8);  //64*8 need send bit, ratio=2/3
@@ -8119,11 +7998,9 @@ void set_Hardware_version(unsigned int value)
         copy_time(&tv_start, &tv_end);
         copy_time(&tv_reboot_start, &tv_reboot);
 
-        int asic_num = 0, error_asic = 0, avg_num = 0;
+        int asic_num = 0, avg_num = 0;
         int run_counter=0;
         int rebootTestNum=readRebootTestNum();
-        double rt_board_rate;
-        double ideal_board_rate;
         char logstr[256];
         int restartNum=readRestartNum();
 
@@ -8359,7 +8236,7 @@ void set_Hardware_version(unsigned int value)
                 }
 #endif
 
-                asic_num = 0, error_asic = 0, avg_num = 0;
+                asic_num = 0, avg_num = 0;
                 for(i=0; i<BITMAIN_MAX_CHAIN_NUM; i++)
                 {
                     if(dev->chain_exist[i])
@@ -8369,7 +8246,7 @@ void set_Hardware_version(unsigned int value)
                         {
                             nonce_num[i][j][nonce_times % TIMESLICE] = dev->chain_asic_nonce[i][j];
                             avg_num += dev->chain_asic_nonce[i][j];
-                            applog(LOG_DEBUG,"%s: chain %d asic %d asic_nonce_num %d", __FUNCTION__, i,j,dev->chain_asic_nonce[i][j]);
+                            applog(LOG_DEBUG,"%s: chain %d asic %d asic_nonce_num %llu", __FUNCTION__, i,j,dev->chain_asic_nonce[i][j]);
                         }
                     }
                 }
@@ -8451,13 +8328,12 @@ void set_Hardware_version(unsigned int value)
 #endif
     void open_core(bool nullwork_enable)
     {
-        unsigned int i = 0, j = 0, k, m, work_id = 0, ret = 0, value = 0, work_fifo_ready = 0, loop=0;
+        unsigned int i = 0, j = 0, m, work_id = 0, ret = 0, value = 0, work_fifo_ready = 0, loop=0;
         unsigned char gateblk[4] = {0,0,0,0};
         unsigned int cmd_buf[3] = {0,0,0}, buf[TW_WRITE_COMMAND_LEN/sizeof(unsigned int)]= {0};
         unsigned int buf_vil_tw[TW_WRITE_COMMAND_LEN_VIL/sizeof(unsigned int)]= {0};
         unsigned char data[TW_WRITE_COMMAND_LEN] = {0xff};
         unsigned char buf_vil[9] = {0,0,0,0,0,0,0,0,0};
-        struct vil_work work_vil;
         struct vil_work_1387 work_vil_1387;
         char logstr[256];
         int wati_count=0;
@@ -8558,7 +8434,7 @@ void set_Hardware_version(unsigned int value)
         }
         else    // vil mode
         {
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version));
+            set_dhash_acc_control((get_dhash_acc_control() & (~OPERATION_MODE)) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version));
             set_hash_counting_number(0);
             // prepare gateblk
             buf_vil[0] = VIL_COMMAND_TYPE | VIL_ALL | SET_CONFIG;
@@ -8678,13 +8554,12 @@ void set_Hardware_version(unsigned int value)
 
     void open_core_one_chain(int chainIndex, bool nullwork_enable)
     {
-        unsigned int i = 0, j = 0, k, m, work_id = 0, ret = 0, value = 0, work_fifo_ready = 0, loop=0;
+        unsigned int i = 0, j = 0, m, work_id = 0, ret = 0, value = 0, work_fifo_ready = 0, loop=0;
         unsigned char gateblk[4] = {0,0,0,0};
         unsigned int cmd_buf[3] = {0,0,0}, buf[TW_WRITE_COMMAND_LEN/sizeof(unsigned int)]= {0};
         unsigned int buf_vil_tw[TW_WRITE_COMMAND_LEN_VIL/sizeof(unsigned int)]= {0};
         unsigned char data[TW_WRITE_COMMAND_LEN] = {0xff};
         unsigned char buf_vil[9] = {0,0,0,0,0,0,0,0,0};
-        struct vil_work work_vil;
         struct vil_work_1387 work_vil_1387;
         char logstr[256];
         int wati_count=0;
@@ -8787,7 +8662,7 @@ void set_Hardware_version(unsigned int value)
         }
         else    // vil mode
         {
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version));
+            set_dhash_acc_control((get_dhash_acc_control() & (~OPERATION_MODE)) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version));
             set_hash_counting_number(0);
             // prepare gateblk
             buf_vil[0] = VIL_COMMAND_TYPE | VIL_ALL | SET_CONFIG;
@@ -8908,13 +8783,12 @@ void set_Hardware_version(unsigned int value)
 
     void open_core_onChain(int chainIndex, int coreNum, int opencore_num, bool nullwork_enable)
     {
-        unsigned int i = 0, j = 0, k, m, work_id = 0, ret = 0, value = 0, work_fifo_ready = 0, loop=0;
+        unsigned int i = 0, j = 0, m, work_id = 0, ret = 0, value = 0, work_fifo_ready = 0, loop=0;
         unsigned char gateblk[4] = {0,0,0,0};
         unsigned int cmd_buf[3] = {0,0,0}, buf[TW_WRITE_COMMAND_LEN/sizeof(unsigned int)]= {0};
         unsigned int buf_vil_tw[TW_WRITE_COMMAND_LEN_VIL/sizeof(unsigned int)]= {0};
         unsigned char data[TW_WRITE_COMMAND_LEN] = {0xff};
         unsigned char buf_vil[9] = {0,0,0,0,0,0,0,0,0};
-        struct vil_work work_vil;
         struct vil_work_1387 work_vil_1387;
         char logstr[256];
         int wati_count=0;
@@ -9012,7 +8886,7 @@ void set_Hardware_version(unsigned int value)
         }
         else    // vil mode
         {
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version));
+            set_dhash_acc_control((get_dhash_acc_control() & (~OPERATION_MODE)) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version));
             set_hash_counting_number(0);
             // prepare gateblk
             buf_vil[0] = VIL_COMMAND_TYPE | VIL_ALL | SET_CONFIG;
@@ -9206,8 +9080,6 @@ void set_Hardware_version(unsigned int value)
 
     void insert_reg_data(unsigned int *buf)
     {
-        char logstr[256];
-
         if(reg_value_buf.reg_value_num >= MAX_NONCE_NUMBER_IN_FIFO || reg_value_buf.p_wr >= MAX_NONCE_NUMBER_IN_FIFO)
         {
             clear_register_value_buf();
@@ -9254,14 +9126,10 @@ void set_Hardware_version(unsigned int value)
     void * get_nonce_and_register()
     {
         unsigned int work_id=0, *data_addr=NULL;
-        unsigned int i=0, j=0, m=0, nonce_number = 0, read_loop=0;
+        unsigned int j=0, m=0, nonce_number = 0, read_loop=0;
         unsigned int buf[2] = {0,0};
         uint64_t n2h = 0, n2l = 0;
-        char ret = 0;
-        unsigned int nonce_p_wr=0, nonce_p_rd=0, nonce_nonce_num=0, nonce_loop_back=0;
-        unsigned int reg_p_wr=0, reg_p_rd=0, reg_reg_value_num=0, reg_loop_back=0;
-        char *buf_hex = NULL;
-
+ 
         while(1)
         {
             cgsleep_ms(1);
@@ -9271,7 +9139,6 @@ void set_Hardware_version(unsigned int value)
                 continue;
             }
 
-            i = 0;
             read_loop = 0;
 
             nonce_number = get_nonce_number_in_fifo() & MAX_NONCE_NUMBER_IN_FIFO;
@@ -9404,14 +9271,7 @@ void set_Hardware_version(unsigned int value)
     */
     void bitmain_reinit()
     {
-        char ret=0,j;
-        uint16_t crc = 0;
-
-        int i=0,x = 0,y = 0;
-        int hardware_version;
-        unsigned int data = 0;
-        bool testRet;
-        int testCounter=0;
+        int i=0;
         char logstr[256];
 
         pthread_mutex_lock(&iic_mutex);
@@ -9592,7 +9452,7 @@ void set_Hardware_version(unsigned int value)
 #endif
 
         if(opt_multi_version)
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version) & (~NEW_BLOCK) & (~RUN_BIT));
+            set_dhash_acc_control(((get_dhash_acc_control() & (~OPERATION_MODE)) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version)) & (~NEW_BLOCK) & (~RUN_BIT));
         cgsleep_ms(10);
 
         //set core number
@@ -9966,14 +9826,9 @@ void set_Hardware_version(unsigned int value)
 
     int bitmain_c5_init(struct init_config config)
     {
-        char ret=0,j;
         uint16_t crc = 0;
-        bool test_result;
         int i=0,x = 0,y = 0;
         int hardware_version;
-        unsigned int data = 0;
-        bool testRet;
-        int testCounter=0;
         struct sysinfo si;
         char logstr[256];
 
@@ -10433,7 +10288,7 @@ void set_Hardware_version(unsigned int value)
 #endif
 
         if(opt_multi_version)
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(1) | VIL_MODE  & (~NEW_BLOCK) & (~RUN_BIT));
+            set_dhash_acc_control(((get_dhash_acc_control() & (~OPERATION_MODE) & (~ VIL_MIDSTATE_NUMBER(0xf))) | VIL_MIDSTATE_NUMBER(1) | VIL_MODE)  & (~NEW_BLOCK) & (~RUN_BIT));
         cgsleep_ms(10);
 
         //set core number
@@ -10717,9 +10572,6 @@ void set_Hardware_version(unsigned int value)
 #ifdef ENABLE_HIGH_VOLTAGE_OPENCORE
         for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
         {
-            int vol_value;
-            unsigned char vol_pic;
-
             if(dev->chain_exist[i] == 1)
             {
 #ifdef USE_OPENCORE_ONEBYONE
@@ -10903,7 +10755,7 @@ void set_Hardware_version(unsigned int value)
                     }
 
                     someBoardUpVoltage=false;
-                    test_result=clement_doTestBoard(true);
+                    clement_doTestBoard(true);
 
 #ifdef ENABLE_REINIT_WHEN_TESTFAILED
                     //if(!test_result)
@@ -11008,8 +10860,6 @@ void set_Hardware_version(unsigned int value)
 
     void bitmain_core_reInit()
     {
-        int i,j;
-        int vol_value,vol_pic,cur_vol_value,cur_vol_pic;
         char logstr[256];
 
         doTestPatten=true;
@@ -11062,7 +10912,6 @@ void set_Hardware_version(unsigned int value)
         int i;
         static uint64_t pool_send_nu = 0;
         struct part_of_job part_job;
-        char *buf_hex = NULL;
 
         part_job.token_type         = SEND_JOB_TYPE;
         part_job.version            = 0x00;
@@ -11120,62 +10969,6 @@ void set_Hardware_version(unsigned int value)
         return buf_len;
     }
 
-    static void show_status(int if_quit)
-    {
-        char * buf_hex = NULL;
-        unsigned int *l_job_start_address = NULL;
-        unsigned int buf[2] = {0};
-        int i = 0;
-        get_work_nonce2(buf);
-        set_dhash_acc_control((unsigned int)get_dhash_acc_control() & ~RUN_BIT);
-        while((unsigned int)get_dhash_acc_control() & RUN_BIT)
-        {
-            cgsleep_ms(1);
-            applog(LOG_DEBUG,"%s: run bit is 1 after set it to 0", __FUNCTION__);
-        }
-
-        buf_hex = bin2hex((unsigned char *)dev->current_job_start_address,c_coinbase_padding);
-
-        free(buf_hex);
-        for(i=0; i<c_merkles_num; i++)
-        {
-            buf_hex = bin2hex((unsigned char *)dev->current_job_start_address + c_coinbase_padding+ i*MERKLE_BIN_LEN,32);
-            free(buf_hex);
-        }
-        if(dev->current_job_start_address == job_start_address_1)
-        {
-            l_job_start_address = job_start_address_2;
-        }
-        else if(dev->current_job_start_address == job_start_address_2)
-        {
-            l_job_start_address = job_start_address_1;
-        }
-        buf_hex = bin2hex((unsigned char *)l_job_start_address,l_coinbase_padding);
-        free(buf_hex);
-        for(i=0; i<l_merkles_num; i++)
-        {
-            buf_hex = bin2hex((unsigned char *)l_job_start_address + l_coinbase_padding+ i*MERKLE_BIN_LEN,32);
-            free(buf_hex);
-        }
-        if(if_quit)
-            quit(1, "HW is more than 5!!");
-    }
-
-    static void show_pool_status(struct pool *pool,uint64_t nonce2)
-    {
-        char * buf_hex = NULL;
-        int i = 0;
-        buf_hex = bin2hex(pool->coinbase,pool->coinbase_len);
-        printf("%s: nonce2 0x%x\n", __FUNCTION__, nonce2);
-        printf("%s: coinbase : %s\n", __FUNCTION__, buf_hex);
-        free(buf_hex);
-        for(i=0; i<pool->merkles; i++)
-        {
-            buf_hex = bin2hex(pool->swork.merkle_bin[i],32);
-            printf("%s: merkle_bin %d : %s\n", __FUNCTION__, i, buf_hex);
-            free(buf_hex);
-        }
-    }
 
     void re_send_last_job()
     {
@@ -11190,9 +10983,8 @@ void set_Hardware_version(unsigned int value)
     int send_job(unsigned char *buf)
     {
         unsigned int len = 0, i=0, j=0, coinbase_padding_len = 0;
-        unsigned short int crc = 0, job_length = 0;
+        unsigned short int job_length = 0;
         unsigned char *temp_buf = NULL, *coinbase_padding = NULL, *merkles_bin = NULL;
-        unsigned char buf1[PREV_HASH_LEN] = {0};
         unsigned int buf2[PREV_HASH_LEN] = {0};
         int times = 0;
         struct part_of_job *part_job = NULL;
@@ -11233,7 +11025,7 @@ void set_Hardware_version(unsigned int value)
         }
         else
         {
-            applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%x, but job_start_address_1 = 0x%x, job_start_address_2 = 0x%x\n", __FUNCTION__, dev->current_job_start_address, job_start_address_1, job_start_address_2);
+            applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%p, but job_start_address_1 = 0x%p, job_start_address_2 = 0x%p\n", __FUNCTION__, dev->current_job_start_address, job_start_address_1, job_start_address_2);
             return -3;
         }
 
@@ -11393,20 +11185,20 @@ void set_Hardware_version(unsigned int value)
             if(!opt_multi_version)
             {
                 set_dhash_acc_control((unsigned int)get_dhash_acc_control() | NEW_BLOCK );
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE);
+                set_dhash_acc_control(((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf))) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE);
             }
             else
             {
                 set_dhash_acc_control((unsigned int)get_dhash_acc_control() | NEW_BLOCK );
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE |VIL_MODE);
+                set_dhash_acc_control(((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf))) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE |VIL_MODE);
             }
         }
         else
         {
             if(!opt_multi_version)
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE );
+                set_dhash_acc_control(((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf))) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE );
             else
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE |VIL_MODE);
+                set_dhash_acc_control(((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf))) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE |VIL_MODE);
         }
 #endif
 
@@ -11567,7 +11359,7 @@ void set_Hardware_version(unsigned int value)
     {
         unsigned char hash1[32];
         unsigned char hash2[32];
-        int i,j;
+        int i;
         unsigned char which_asic_nonce, which_core_nonce;
         uint64_t hashes = 0;
         static uint64_t pool_diff = 0, net_diff = 0;
@@ -11584,7 +11376,7 @@ void set_Hardware_version(unsigned int value)
                 pool_diff_bit++;
             }
             pool_diff_bit--;
-            applog(LOG_DEBUG,"%s: pool_diff:%d work_diff:%d pool_diff_bit:%d ...\n", __FUNCTION__,pool_diff,work->sdiff,pool_diff_bit);
+            applog(LOG_DEBUG,"%s: pool_diff:%llu work_diff:%llu pool_diff_bit:%llu ...\n", __FUNCTION__,pool_diff,(uint64_t)work->sdiff,pool_diff_bit);
         }
 
         if(net_diff != (uint64_t)current_diff)
@@ -11598,7 +11390,7 @@ void set_Hardware_version(unsigned int value)
                 net_diff_bit++;
             }
             net_diff_bit--;
-            applog(LOG_DEBUG,"%s:net_diff:%d current_diff:%d net_diff_bit %d ...\n", __FUNCTION__,net_diff,current_diff,net_diff_bit);
+            applog(LOG_DEBUG,"%s:net_diff:%llu current_diff:%llu net_diff_bit %llu ...\n", __FUNCTION__,net_diff,(uint64_t)current_diff,net_diff_bit);
         }
 
         uint32_t *hash2_32 = (uint32_t *)hash1;
@@ -11691,11 +11483,8 @@ void set_Hardware_version(unsigned int value)
         struct thr_info *thr = (struct thr_info *)arg;
         struct cgpu_info *bitmain_c5 = thr->cgpu;
         struct bitmain_c5_info *info = bitmain_c5->device_data;
-        double device_tdiff, hwp;
-        uint32_t a = 0, b = 0;
         static uint32_t last_nonce3 = 0;
         static uint32_t last_workid = 0;
-        int i, j;
 
         h = 0;
         pthread_mutex_lock(&nonce_mutex);
@@ -11784,7 +11573,7 @@ void set_Hardware_version(unsigned int value)
                     continue;
             }
             c_pool = pools[pool->pool_no];
-            get_work_by_nonce2(thr,&work,pool,c_pool,nonce2,pool->ntime,version);
+            get_work_by_nonce2(thr,&work,pool,c_pool,nonce2,version);
             h += hashtest_submit(thr,work,nonce3,midstate,pool,nonce2,chain_id);
             free_work(work);
         }
@@ -11793,9 +11582,10 @@ void set_Hardware_version(unsigned int value)
         cgsleep_ms(1);
         if(h != 0)
         {
-            applog(LOG_DEBUG,"%s: hashes %u ...\n", __FUNCTION__,h * 0xffffffffull);
+            applog(LOG_DEBUG,"%s: hashes %llu ...\n", __FUNCTION__,h * 0xffffffffull);
         }
         h = h * 0xffffffffull;
+        return NULL;
     }
 
     static int64_t bitmain_c5_scanhash(struct thr_info *thr)
@@ -11813,10 +11603,7 @@ void set_Hardware_version(unsigned int value)
         struct thr_info *thr = bitmain_c5->thr[0];
         struct work *work;
         struct pool *pool;
-        int i, count = 0;
         mutex_lock(&info->lock);
-        static char *last_job = NULL;
-        bool same_job = true;
         unsigned char *buf = NULL;
         thr->work_update = false;
         thr->work_restart = false;
@@ -11856,7 +11643,7 @@ void set_Hardware_version(unsigned int value)
 
     static void get_bitmain_statline_before(char *buf, size_t bufsiz, struct cgpu_info *bitmain_c5)
     {
-        struct bitmain_c5_info *info = bitmain_c5->device_data;
+ //       struct bitmain_c5_info *info = bitmain_c5->device_data;
     }
 
     void remove_dot_char(char *number)
@@ -11898,11 +11685,8 @@ void set_Hardware_version(unsigned int value)
     static struct api_data *bitmain_api_stats(struct cgpu_info *cgpu)
     {
         struct api_data *root = NULL;
-        struct bitmain_c5_info *info = cgpu->device_data;
-        char buf[64];
         int i = 0;
         uint64_t hash_rate_all = 0;
-        char displayed_rate_all[16];
         bool copy_data = true;
 
         root = api_add_uint8(root, "miner_count", &(dev->chain_num), copy_data);
@@ -12283,7 +12067,6 @@ void set_Hardware_version(unsigned int value)
         {
             if(dev->chain_exist[i] == 1)
             {
-                int j = 0;
                 char chain_offside[20];
                 char tmp[20];
 
@@ -12297,7 +12080,6 @@ void set_Hardware_version(unsigned int value)
         {
             if(dev->chain_exist[i] == 1)
             {
-                int j = 0;
                 char chain_opencore[20];
                 char tmp[20];
 
